@@ -53,11 +53,36 @@ CREATE TABLE categories (
 
 CREATE TABLE merchants (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    merchant_name VARCHAR(150) UNIQUE NOT NULL,
+    merchant_name VARCHAR(150) NOT NULL,
     normalized_name VARCHAR(150) UNIQUE NOT NULL,
     merchant_type VARCHAR(150) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+
+    CONSTRAINT chk_merchants_merchant_type
+        CHECK (
+            merchant_type IN (
+                'retailer',
+                'service_provider',
+                'financial_institution',
+                'employer',
+                'government',
+                'healthcare_provider',
+                'individual',
+                'other',
+                'unknown'
+            )
+        ),
+    
+    CONSTRAINT chk_merchants_name_not_blank
+        CHECK (
+            BTRIM(merchant_name) <> ''
+        ),
+
+    CONSTRAINT chk_merchants_normalized_name_not_blank
+        CHECK (
+            BTRIM(normalized_name) <> ''
+        )
 );
 
 
