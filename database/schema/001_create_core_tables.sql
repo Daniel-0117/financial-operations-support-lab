@@ -1,10 +1,13 @@
 CREATE TABLE accounts (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    account_name VARCHAR(150) NOT NULL,
+    account_name VARCHAR(150) 
+        CONSTRAINT chk_account_name CHECK trim(account_name)
+        NOT NULL,
     account_type VARCHAR(150) NOT NULL,
     institution_name VARCHAR(150),
-    current_balance NUMERIC(12,2) NOT NULL,
-    credit_limit NUMERIC(12,2),
+    current_balance NUMERIC(12, 2) NOT NULL,
+    credit_limit NUMERIC(12, 2)
+        CONSTRAINT chk_credit_limit CHECK ,
     opened_date DATE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -19,7 +22,7 @@ CREATE TABLE accounts (
                 'investment'
             )
         ),
-
+    
     CONSTRAINT chk_accounts_current_balance
         CHECK (
             current_balance >= 0
@@ -27,11 +30,9 @@ CREATE TABLE accounts (
 
     CONSTRAINT chk_accounts_credit_limit
         CHECK (
-            credit_limit IS NULL
-            OR credit_limit >= 0
+            credit_limit IS NULL OR credit_limit >= 0
         )
 );
-
 
 CREATE TABLE categories (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -40,7 +41,7 @@ CREATE TABLE categories (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 
-    CONSTRAINT chk_categories_category_type
+    CONSTRAINT chk_category_type
         CHECK (
             category_type IN (
                 'income',
@@ -50,38 +51,30 @@ CREATE TABLE categories (
         )
 );
 
-
 CREATE TABLE merchants (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    merchant_name VARCHAR(150) NOT NULL,
-    normalized_name VARCHAR(150) UNIQUE NOT NULL,
+    merchant_name VARCHAR(150) UNIQUE NOT NULL,
+    normalized_name VARCHAR(150)
+        GENERATED ALWAYS AS (lower(trim(merchant_name))) STORED 
+        UNIQUE NOT NULL,
     merchant_type VARCHAR(150) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-
-    CONSTRAINT chk_merchants_merchant_type
+    
+   
+    CONSTRAINT chk_merchant_type
         CHECK (
             merchant_type IN (
                 'retailer',
                 'service_provider',
-                'financial_institution',
                 'employer',
                 'government',
+                'financial_institution',
                 'healthcare_provider',
                 'individual',
                 'other',
                 'unknown'
             )
-        ),
-    
-    CONSTRAINT chk_merchants_name_not_blank
-        CHECK (
-            BTRIM(merchant_name) <> ''
-        ),
-
-    CONSTRAINT chk_merchants_normalized_name_not_blank
-        CHECK (
-            BTRIM(normalized_name) <> ''
         )
 );
 
@@ -99,32 +92,65 @@ CREATE TABLE transactions (
     merchant_id INT REFERENCES merchants(id),
     category_id INT REFERENCES categories(id),
     account_id INT NOT NULL REFERENCES accounts(id)
-);
 
+    CONSTRAINT chk_transaction_type (
+        transaction_type IN (
+            'income',
+            'expense',
+            'transfer',
+            'refund',
+            'fee',
+            'adjustment'
+        )
+    )
+);
 
 CREATE TABLE debts (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     debt_name VARCHAR(150) NOT NULL,
     lender_name VARCHAR(150) NOT NULL,
     status VARCHAR(50) NOT NULL,
-    current_balance NUMERIC(5,2) NOT NULL,
-    original_balance NUMERIC(5,2)
+    current_balance NUMERIC(12,2) NOT NULL,
+    original_balance NUMERIC(12,2) 
         CHECK (original_balance >= 0),
-    minimum_payment NUMERIC(5,2)
+    minimum_payment NUMERIC(12,2) 
         CHECK (minimum_payment >= 0),
     interest_rate DECIMAL(5,2) NOT NULL,
-    due_day INT NOT NULL,
+    due_day DATE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    account_id INT REFERENCES accounts(id)
-);
+    account_id INT REFERENCES accounts(id),
 
+    chk_interest_rate (
+        CHECK (
+            interest_rate >= 0
+        )
+    ), 
+
+    chk_current_balance (
+        CHECK (
+            current_balance >= 0
+        )
+    ),
+
+    chk_status (
+        CHECK (
+            status IN (
+                'current',
+                'delinquent',
+                'paid_off',
+                'transferred'
+            )
+        )
+    )
+);
 
 CREATE TABLE savings_goals (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     goal_name VARCHAR(150) UNIQUE NOT NULL,
-    target_amount NUMERIC(5,2) NOT NULL,
-    current_amount NUMERIC(5,2) NOT NULL,
+    target_amount NUMERIC(12,2) NOT NULL,
+    current_amount NUMERIC(12,2) NOT NULL,
     status VARCHAR(150) NOT NULL,
     target_date DATE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+
 );
