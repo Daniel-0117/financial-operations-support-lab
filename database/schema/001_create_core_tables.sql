@@ -108,36 +108,54 @@ CREATE TABLE transactions (
         CONSTRAINT chk_amount_is_positive 
             CHECK (amount > 0),
     transaction_direction VARCHAR(150) NOT NULL,
-    event_kind VARCHAR(40) NOT NULL,
+    event_kind VARCHAR(40) 
+        NOT NULL
+        CONSTRAINT chk_event_kind
+            CHECK (
+                event_kind IN (
+                    'purchase',
+                    'payroll',
+                    'refund',
+                    'fee',
+                    'transfer'
+                )
+            ),
+
     description TEXT,
     transaction_date DATE NOT NULL,
-    source VARCHAR(150) NOT NULL,
-    notes TEXT,
-    posted_date 
-        DATE
-        CONSTRAINT chk_posted_date_after_transaction_date
+    source VARCHAR(150) 
+        NOT NULL
+        CONSTRAINT chk_source
             CHECK (
-                (
-                    transaction_type='pending'
-                    AND posted_date = NULL
+                source IN (
+                    'manual',
+                    'csv_import',
+                    'bank_import',
+                    'system'
                 )
-                OR
-                (
-                    posted_date >= transaction_date
-                )
-                
             ),
+    notes TEXT,
+    posted_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     merchant_id INT REFERENCES merchants(id),
     category_id INT REFERENCES categories(id),
     account_id INT NOT NULL REFERENCES accounts(id),
 
     CONSTRAINT chk_transaction_direction
-        CHECK (transaction_direction IN (
-            'income',
-            'expense',
-            'transfer'
-        )
+        CHECK (
+            transaction_direction IN (
+                'income',
+                'expense',
+                'transfer'
+            )
+        ),
+
+    CONSTRAINT chk_posted_date_on_or_after_transaction_date
+        CHECK (
+            posted_date IS NULL OR posted_date >= transaction_date
+        ),
+
+    
     
 );
 
