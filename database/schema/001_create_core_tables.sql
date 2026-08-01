@@ -1,13 +1,15 @@
 CREATE TABLE accounts (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     account_name VARCHAR(150) 
-        CONSTRAINT chk_account_name CHECK trim(account_name)
-        NOT NULL,
+        NOT NULL
+        CONSTRAINT chk_account_name_not_blank
+            CHECK (
+                BTRIM(account_name) <> ''
+            ),
     account_type VARCHAR(150) NOT NULL,
     institution_name VARCHAR(150),
     current_balance NUMERIC(12, 2) NOT NULL,
-    credit_limit NUMERIC(12, 2)
-        CONSTRAINT chk_credit_limit CHECK ,
+    credit_limit NUMERIC(12, 2),
     opened_date DATE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -30,20 +32,35 @@ CREATE TABLE accounts (
 
     CONSTRAINT chk_accounts_credit_limit
         CHECK (
-            credit_limit IS NULL OR credit_limit >= 0
+            credit_limit IS NULL OR credit_limit > 0
+        ),
+    
+    CONSTRAINT chk_accounts_credit_limit_by_type
+        CHECK(
+            (
+                account_type = 'credit'
+                AND credit_limit IS NOT NULL
+            )
+            OR
+            (
+                account_type <> 'credit'
+                AND credit_limit IS NULL
+            )
         )
 );
+
+     
 
 CREATE TABLE categories (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     category_name VARCHAR(150) UNIQUE NOT NULL,
-    category_type VARCHAR(150) NOT NULL,
+    category_direction VARCHAR(150) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 
-    CONSTRAINT chk_category_type
+    CONSTRAINT chk_category_direction
         CHECK (
-            category_type IN (
+            category_direction IN (
                 'income',
                 'expense',
                 'transfer'
@@ -53,7 +70,7 @@ CREATE TABLE categories (
 
 CREATE TABLE merchants (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    merchant_name VARCHAR(150) UNIQUE NOT NULL,
+    merchant_name VARCHAR(150) NOT NULL,
     normalized_name VARCHAR(150)
         GENERATED ALWAYS AS (lower(trim(merchant_name))) STORED 
         UNIQUE NOT NULL,
@@ -75,34 +92,53 @@ CREATE TABLE merchants (
                 'other',
                 'unknown'
             )
+        ),
+
+    CONSTRAINT chk_merchant_name_not_blank
+        CHECK (
+            BTRIM(merchant_name) <> ''
         )
 );
 
 
 CREATE TABLE transactions (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    amount NUMERIC(12,2) NOT NULL,
-    transaction_type VARCHAR(150) NOT NULL,
+    amount NUMERIC(12,2) 
+        NOT NULL
+        CONSTRAINT chk_amount_is_positive 
+            CHECK (amount > 0),
+    transaction_direction VARCHAR(150) NOT NULL,
+    event_kind VARCHAR(40) NOT NULL,
     description TEXT,
     transaction_date DATE NOT NULL,
     source VARCHAR(150) NOT NULL,
     notes TEXT,
-    posted_date DATE,
+    posted_date 
+        DATE
+        CONSTRAINT chk_posted_date_after_transaction_date
+            CHECK (
+                (
+                    transaction_type='pending'
+                    AND posted_date = NULL
+                )
+                OR
+                (
+                    posted_date >= transaction_date
+                )
+                
+            ),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     merchant_id INT REFERENCES merchants(id),
     category_id INT REFERENCES categories(id),
-    account_id INT NOT NULL REFERENCES accounts(id)
+    account_id INT NOT NULL REFERENCES accounts(id),
 
-    CONSTRAINT chk_transaction_type (
-        transaction_type IN (
+    CONSTRAINT chk_transaction_direction
+        CHECK (transaction_direction IN (
             'income',
             'expense',
-            'transfer',
-            'refund',
-            'fee',
-            'adjustment'
+            'transfer'
         )
-    )
+    
 );
 
 CREATE TABLE debts (
