@@ -100,30 +100,49 @@ CREATE TABLE merchants (
         )
 );
 
+CREATE TABLE transaction_event_types (
+    transaction_direction VARCHAR(150) 
+        NOT NULL
+        CONSTRAINT chk_transaction_direction_not_blank
+            CHECK (
+                BTRIM(transaction_direction) <> ''
+            )
+        CONSTRAINT chk_normalized_transaction_direction
+            CHECK  lower(transaction_direction),
+    event_kind VARCHAR(40) 
+        NOT NULL
+        CONSTRAINT chk_event_kind_not_blank
+            CHECK (
+                BTRIM(event_kind) <> ''
+            )
+        CONSTRAINT chk_normalized_event_kind
+            CHECK lower(event_kind),
+    description TEXT,
+
+    CONSTRAINT pk_transaction_event_types
+        PRIMARY KEY (
+            transaction_direction,
+            event_kind
+        )
+    
+);
+
 
 CREATE TABLE transactions (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    amount NUMERIC(12,2) 
-        NOT NULL
-        CONSTRAINT chk_amount_is_positive 
-            CHECK (amount > 0),
-    transaction_direction VARCHAR(150) NOT NULL,
-    event_kind VARCHAR(40) 
-        NOT NULL
-        CONSTRAINT chk_event_kind
-            CHECK (
-                event_kind IN (
-                    'purchase',
-                    'payroll',
-                    'refund',
-                    'fee',
-                    'transfer'
-                )
-            ),
 
+    amount NUMERIC(12,2)
+        NOT NULL
+        CONSTRAINT chk_amount_is_positive
+            CHECK (
+                amount > 0
+            ),
+    transaction_direction VARCHAR(150) NOT NULL,
+    event_kind VARCHAR(40) NOT NULL,
     description TEXT,
     transaction_date DATE NOT NULL,
-    source VARCHAR(150) 
+
+    source VARCHAR(150)
         NOT NULL
         CONSTRAINT chk_source
             CHECK (
@@ -139,25 +158,45 @@ CREATE TABLE transactions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     merchant_id INT REFERENCES merchants(id),
     category_id INT REFERENCES categories(id),
-    account_id INT NOT NULL REFERENCES accounts(id),
-
-    CONSTRAINT chk_transaction_direction
-        CHECK (
-            transaction_direction IN (
-                'income',
-                'expense',
-                'transfer'
-            )
-        ),
+    from_account_id INT REFERENCES accounts(id),
+    to_account_id INT REFERENCES accounts(id),
 
     CONSTRAINT chk_posted_date_on_or_after_transaction_date
         CHECK (
-            posted_date IS NULL OR posted_date >= transaction_date
-        ),
+            posted_date IS NULL
+            OR posted_date >= transaction_date
+        ),    
 
-    
-    
+    CONSTRAINT fk_transaction_event_combination 
+        FOREIGN KEY (transaction_direction, event_kind) 
+        REFERENCES transaction_event_types (transaction_direction, event_kind),
+
+    CONSTRAINT chk_valid_account_presence_by_transaction_direction
+        CHECK (
+            (
+                transaction_direction = 'expense' 
+                AND from_account_id IS NOT NULL
+                AND to_account_id IS NULL
+            )
+            OR
+            (
+                transaction_direction = 'income'
+                AND from_account_id IS NULL
+                AND to_account_id IS NOT NULL
+            )
+            OR
+            (
+                transaction_direction = 'transfer'
+                AND from_account_id IS NOT NULL
+                AND to_account_id IS NOT NULL
+            )
+        ),
+    CONSTRAINT chk_distinct_transfer_accounts
+        CHECK (
+            from_account_id <> to_account_id
+        )
 );
+
 
 CREATE TABLE debts (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
