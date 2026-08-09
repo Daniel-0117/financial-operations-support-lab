@@ -53,7 +53,12 @@ CREATE TABLE accounts (
 
 CREATE TABLE categories (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    category_name VARCHAR(150) UNIQUE NOT NULL,
+    category_name VARCHAR(150) UNIQUE 
+        NOT NULL
+        CONSTRAINT chk_category_name_not_blank
+            CHECK  (
+                BTRIM(category_name) <> ''
+            ),
     category_direction VARCHAR(150) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -65,7 +70,10 @@ CREATE TABLE categories (
                 'expense',
                 'transfer'
             )
-        )
+        ),
+
+    CONSTRAINT uq_categories_id_direction
+        UNIQUE (id, category_direction)
 );
 
 CREATE TABLE merchants (
@@ -108,7 +116,7 @@ CREATE TABLE transaction_event_types (
                 BTRIM(transaction_direction) <> ''
             )
         CONSTRAINT chk_normalized_transaction_direction
-            CHECK  lower(transaction_direction),
+            CHECK  (transaction_direction = lower(BTRIM(transaction_direction))),
     event_kind VARCHAR(40) 
         NOT NULL
         CONSTRAINT chk_event_kind_not_blank
@@ -116,8 +124,17 @@ CREATE TABLE transaction_event_types (
                 BTRIM(event_kind) <> ''
             )
         CONSTRAINT chk_normalized_event_kind
-            CHECK lower(event_kind),
+            CHECK (event_kind = lower(BTRIM(event_kind))),
     description TEXT,
+
+    CONSTRAINT chk_transaction_direction_values
+        CHECK (
+            transaction_direction IN (
+                'expense',
+                'transfer',
+                'income'
+            )
+        ),
 
     CONSTRAINT pk_transaction_event_types
         PRIMARY KEY (
@@ -157,7 +174,7 @@ CREATE TABLE transactions (
     posted_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     merchant_id INT REFERENCES merchants(id),
-    category_id INT REFERENCES categories(id),
+    category_id INT,
     from_account_id INT REFERENCES accounts(id),
     to_account_id INT REFERENCES accounts(id),
 
@@ -194,38 +211,63 @@ CREATE TABLE transactions (
     CONSTRAINT chk_distinct_transfer_accounts
         CHECK (
             from_account_id <> to_account_id
-        )
+        ),
+        
+    CONSTRAINT fk_categories_direction_combinations
+        FOREIGN KEY (category_id, transaction_direction)
+        REFERENCES categories (id, category_direction)
 );
 
 
 CREATE TABLE debts (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    debt_name VARCHAR(150) NOT NULL,
-    lender_name VARCHAR(150) NOT NULL,
+    debt_name VARCHAR(150) 
+        NOT NULL
+        CONSTRAINT chk_debt_name_not_empty
+            CHECK (
+                BTRIM(debt_name) <> ''
+            ),
+    lender_name VARCHAR(150) 
+        NOT NULL
+        CONSTRAINT chk_lender_name_not_empty
+            CHECK (
+                BTRIM(lender_name) <> ''
+            ),
     status VARCHAR(50) NOT NULL,
     current_balance NUMERIC(12,2) NOT NULL,
-    original_balance NUMERIC(12,2) 
-        CHECK (original_balance >= 0),
-    minimum_payment NUMERIC(12,2) 
-        CHECK (minimum_payment >= 0),
-    interest_rate DECIMAL(5,2) NOT NULL,
-    due_day DATE NOT NULL,
+    original_balance NUMERIC(12,2)
+        NOT NULL 
+        CONSTRAINT chk_original_balance_within_bounds
+            CHECK (original_balance > 0),
+    minimum_payment NUMERIC(12,2)
+        NOT NULL 
+        CONSTRAINT chk_min_pay_within_bounds
+            CHECK (minimum_payment >= 0),
+    interest_rate DECIMAL(5,2) 
+        NOT NULL
+        CONSTRAINT chk_interest_rate_within_bounds
+            CHECK (interest_rate >= 0 AND interest_rate <= 100),
+    due_day SMALLINT 
+        NOT NULL
+        CONSTRAINT chk_due_day_within_month_bounds
+            CHECK (due_day >= 1 AND due_day <= 31),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     account_id INT REFERENCES accounts(id),
 
-    chk_interest_rate (
-        CHECK (
-            interest_rate >= 0
+ CONSTRAINT chk_debt_status_balance_consistency
+    CHECK (
+        (
+            status IN ('current', 'delinquent')
+            AND current_balance > 0
         )
-    ), 
-
-    chk_current_balance (
-        CHECK (
-            current_balance >= 0
+        OR
+        (
+            status IN ('paid_off', 'transferred')
+            AND current_balance = 0
         )
     ),
 
-    chk_status (
+    CONSTRAINT chk_debt_status
         CHECK (
             status IN (
                 'current',
@@ -234,16 +276,49 @@ CREATE TABLE debts (
                 'transferred'
             )
         )
-    )
+    
 );
 
 CREATE TABLE savings_goals (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    goal_name VARCHAR(150) UNIQUE NOT NULL,
-    target_amount NUMERIC(12,2) NOT NULL,
-    current_amount NUMERIC(12,2) NOT NULL,
-    status VARCHAR(150) NOT NULL,
+    goal_name VARCHAR(150) UNIQUE 
+        NOT NULL
+        CONSTRAINT chk_goal_name_not_blank
+            CHECK (
+                BTRIM(goal_name) <> ''
+            ),
+    target_amount NUMERIC(12,2) 
+        NOT NULL
+        CONSTRAINT chk_target_amount_within_bounds
+            CHECK (target_amount > 0),
+    current_amount NUMERIC(12,2) DEFAULT 0
+        NOT NULL
+        CONSTRAINT chk_current_amount_within_bounds
+            CHECK (current_amount >= 0),
+    status VARCHAR(150) 
+        NOT NULL
+        CONSTRAINT chk_savings_goals_status
+            CHECK (
+                status IN (
+                    'current',
+                    'behind',
+                    'fulfilled',
+                    'shelved'
+                )
+            ),
     target_date DATE,
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+
+    CONSTRAINT chk_savings_is_fulfilled
+        CHECK (
+            (
+                status = 'fulfilled'
+                AND current_amount >= target_amount
+            )
+            OR 
+            (
+                status IN ('current', 'behind', 'shelved')
+            )
+        )
 
 );
