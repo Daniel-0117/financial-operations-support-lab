@@ -1,6 +1,6 @@
 CREATE TABLE accounts (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    account_name VARCHAR(150) 
+    account_name VARCHAR(150) UNIQUE 
         NOT NULL
         CONSTRAINT chk_account_name_not_blank
             CHECK (
@@ -23,11 +23,6 @@ CREATE TABLE accounts (
                 'cash',
                 'investment'
             )
-        ),
-    
-    CONSTRAINT chk_accounts_current_balance
-        CHECK (
-            current_balance >= 0
         ),
 
     CONSTRAINT chk_accounts_credit_limit
@@ -174,7 +169,7 @@ CREATE TABLE transactions (
     posted_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     merchant_id INT REFERENCES merchants(id),
-    category_id INT,
+    category_id INT NOT NULL,
     from_account_id INT REFERENCES accounts(id),
     to_account_id INT REFERENCES accounts(id),
 
@@ -210,7 +205,9 @@ CREATE TABLE transactions (
         ),
     CONSTRAINT chk_distinct_transfer_accounts
         CHECK (
-            from_account_id <> to_account_id
+            (from_account_id IS NULL OR to_account_id IS NULL)
+            OR
+            (from_account_id IS DISTINCT FROM to_account_id)
         ),
         
     CONSTRAINT fk_categories_direction_combinations
@@ -252,7 +249,7 @@ CREATE TABLE debts (
         CONSTRAINT chk_due_day_within_month_bounds
             CHECK (due_day >= 1 AND due_day <= 31),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    account_id INT REFERENCES accounts(id),
+    account_id INT UNIQUE REFERENCES accounts(id),
 
  CONSTRAINT chk_debt_status_balance_consistency
     CHECK (
@@ -322,3 +319,5 @@ CREATE TABLE savings_goals (
         )
 
 );
+  
+
