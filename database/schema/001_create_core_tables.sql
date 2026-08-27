@@ -5,6 +5,10 @@ CREATE TABLE accounts (
         CONSTRAINT chk_account_name_not_blank
             CHECK (
                 BTRIM(account_name) <> ''
+            )
+        CONSTRAINT chk_account_name_lower_case
+            CHECK (
+                account_name = lower(BTRIM(account_name))
             ),
     account_type VARCHAR(150) NOT NULL,
     institution_name VARCHAR(150),
@@ -53,6 +57,10 @@ CREATE TABLE categories (
         CONSTRAINT chk_category_name_not_blank
             CHECK  (
                 BTRIM(category_name) <> ''
+            )
+        CONSTRAINT chk_category_name_lowercase
+            CHECK (
+               category_name = lower(BTRIM(category_name))
             ),
     category_direction VARCHAR(150) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -223,6 +231,10 @@ CREATE TABLE debts (
         CONSTRAINT chk_debt_name_not_empty
             CHECK (
                 BTRIM(debt_name) <> ''
+            )
+        CONSTRAINT chk_debt_name_lowercase
+            CHECK (
+                debt_name = lower(BTRIM(debt_name))
             ),
     lender_name VARCHAR(150) 
         NOT NULL
@@ -283,6 +295,10 @@ CREATE TABLE savings_goals (
         CONSTRAINT chk_goal_name_not_blank
             CHECK (
                 BTRIM(goal_name) <> ''
+            )
+        CONSTRAINT chk_goal_name_lowercase
+            CHECK (
+                goal_name = lower(BTRIM(goal_name))
             ),
     target_amount NUMERIC(12,2) 
         NOT NULL
