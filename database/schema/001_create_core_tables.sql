@@ -83,7 +83,7 @@ CREATE TABLE merchants (
     id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     merchant_name VARCHAR(150) NOT NULL,
     normalized_name VARCHAR(150)
-        GENERATED ALWAYS AS (lower(trim(merchant_name))) STORED 
+        GENERATED ALWAYS AS (lower(BTRIM(merchant_name))) STORED 
         UNIQUE NOT NULL,
     merchant_type VARCHAR(150) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -242,6 +242,9 @@ CREATE TABLE debts (
             CHECK (
                 BTRIM(lender_name) <> ''
             ),
+    normalized_lender_name VARCHAR(150)
+        GENERATED ALWAYS AS (lower(BTRIM(lender_name))) STORED 
+        NOT NULL,
     status VARCHAR(50) NOT NULL,
     current_balance NUMERIC(12,2) NOT NULL,
     original_balance NUMERIC(12,2)
@@ -252,7 +255,7 @@ CREATE TABLE debts (
         NOT NULL 
         CONSTRAINT chk_min_pay_within_bounds
             CHECK (minimum_payment >= 0),
-    interest_rate DECIMAL(5,2) 
+    interest_rate NUMERIC(5,2) 
         NOT NULL
         CONSTRAINT chk_interest_rate_within_bounds
             CHECK (interest_rate >= 0 AND interest_rate <= 100),
@@ -308,7 +311,7 @@ CREATE TABLE savings_goals (
         NOT NULL
         CONSTRAINT chk_current_amount_within_bounds
             CHECK (current_amount >= 0),
-    status VARCHAR(150) 
+    status VARCHAR(50) 
         NOT NULL
         CONSTRAINT chk_savings_goals_status
             CHECK (
@@ -337,3 +340,8 @@ CREATE TABLE savings_goals (
 );
   
 
+CREATE INDEX idx_transactions_merchant_id ON transactions (merchant_id);
+CREATE INDEX idx_transactions_from_account_id ON transactions (from_account_id);
+CREATE INDEX idx_transactions_to_account_id ON transactions (to_account_id);
+CREATE INDEX idx_transactions_category_direction ON transactions (category_id, transaction_direction);
+CREATE INDEX idx_transactions_event_type ON transactions (transaction_direction, event_kind);
