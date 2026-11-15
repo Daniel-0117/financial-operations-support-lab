@@ -1,0 +1,51 @@
+part 1
+1. A ticket with agent_id null represents a ticket that can be from customer
+   but not from an agent. Likely the ticket is directly from a customer and no other agent 
+   has assisted in it yet. 
+2. A customer can have many tickets technically since a ticket can have the 
+   same cutomer_id that another one has. A single ticket could have multiple customers_id. 
+   I know because customer_id is not unique i the tickets table.
+3. To detemine how many notes a ticket has all thats needed is the ticket_notes table.
+   A self join and a count() utilizing the ticket_id is sufficient to determine the amount
+
+part 2
+4. SELECT ticket_id
+   FROM tickets 
+   WHERE status IS 'open'
+   ORDER BY ticket_id DESC
+
+5. SELECT ticket_id, status, company_name
+   FROM tickets t
+   JOIN customers c ON t.customer_id = c.customer_id
+
+6.  SELECT region, COUNT(ticket_id) AS ticket_count
+    FROM customers c
+    JOIN tickets t ON c.customer_id = t.customer_id
+
+7.  SELECT customer_name, COUNT(ticket_id) AS ticket_count
+    FROM customers c
+    JOIN tickets t ON c.customer_id = t.customer_id
+    WHERE ticket_count = NULL IS 0
+
+
+8.  SELECT full_name, COUNT(ticket_id)
+    FROM agents a
+    JOIN tickets t ON a.agent_id = t.agent_id
+    WHERE status = 'open' OR 'pending'
+   
+
+6.  SELECT region, COUNT(ticket_id) AS ticket_count
+    FROM customers c
+    JOIN tickets t ON c.customer_id = t.customer_id
+    GROUP BY region 
+
+7.  SELECT company_name, COUNT(ticket_id) AS ticket_count
+    FROM customers c
+    JOIN tickets t ON c.customer_id = t.customer_id
+    GROUP BY company_name
+
+8.  SELECT full_name, COUNT(ticket_id)
+    FROM agents a
+    JOIN tickets t ON a.agent_id = t.agent_id
+    WHERE priority = 1
+    GROUP By agent_id
