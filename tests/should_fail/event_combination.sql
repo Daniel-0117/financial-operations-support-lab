@@ -1,5 +1,5 @@
--- Test: Checks event combinations
--- Expect: rejection by fk_transaction_event_combination
+-- expect: fk_transaction_event_combination
+-- test: Checks event combinations
 
 BEGIN;
 INSERT INTO transactions (amount, transaction_direction, event_kind, transaction_date, source, category_id, from_account_id, description, notes)
